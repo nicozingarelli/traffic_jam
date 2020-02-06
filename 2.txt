@@ -1,1 +1,2 @@
-3 0 h 3 R True
+2 0 h 3 B True
+3 2 v 2 R True

@@ -3,6 +3,7 @@ import  sys, random
 # set up the board
 BOARDWIDTH = 6  # number of columns in the board
 BOARDHEIGHT = 6 # number of rows in the board
+GOAL_STATE = (3,0)
 
 def main ():
     print("main")
@@ -10,44 +11,10 @@ def main ():
     guy = board.getBoardHash()
     visited = {guy}
     red_car = board.getRedCar()
-    print(red_car.getStep([red_car.x, red_car.y],[3,0]))
-    findAllNewStates(board.cars, board.board)
-    print(board.getCarsBlocking())
+    board.findAllNewStates()
 
 # if RedCar.x == 4:
 	#"We're done"
-
-def findAllNewStates(cars, board):
-    board_size = len(board)
-    for car in cars:
-        if(car.lie == 'h'):
-            print(car.sign)
-            if(car.x > 0):
-                for i in range(1, car.x + 1):
-                    if(board[car.y][car.x - i] == 0):
-                        print("found new state left")
-                    else:
-                        break
-            if(car.x + car.len <= board_size):
-                for i in range(1, board_size - (car.x + car.len) + 1):
-                    if(board[car.y][car.x + car.len - 1 + i] == 0):
-                        print("found new state right")
-                    else:
-                        break
-        else:
-            print(car.sign)
-            if(car.y > 0):
-                for i in range(1, car.y + 1):
-                    if(board[car.y - i][car.x] == 0):
-                        print("found new state up")
-                    else:
-                        break
-            if(car.y + car.len <= board_size):
-                for i in range(1, board_size - (car.y + car.len) + 1):
-                    if(board[car.y + car.len - 1 + i][car.x] == 0):
-                        print("found new state down")
-                    else:
-                        break
 
 def readPuzzle(puzzle):
     cars = []
@@ -55,7 +22,15 @@ def readPuzzle(puzzle):
         for sor in puzzle:
             c = sor.split()
             cars.append(Car(int(c[0]), int(c[1]), c[2], int(c[3]), c[4]))
-    return Table(cars, (3,0))
+    return Table(cars, GOAL_STATE)
+
+def reset_to_0(the_array):
+    for i, e in enumerate(the_array):
+        if isinstance(e, list):
+            reset_to_0(e)
+        else:
+            the_array[i] = 0
+
 class Car(object):
 
     def __init__(self, x, y, lie, length, sign):
@@ -150,27 +125,20 @@ class Table(object):
         num_blocking = 0
         movingindex = {'h':0,'v':1}
         indices = self.getDirectPathIndices()
-        print('indices on dir path: ',indices)
         for car in self.cars:
             if(car.sign == 'R'):
                 continue
-            if car.lie == 'h':
-                for i in (0, car.len):
+            elif car.lie == 'h':
+                for i in range(0, car.len):
                     if([car.x + i, car.y] in indices):
                         num_blocking += 1
                         print(car.sign)
-                        continue
-                    continue
-                continue
             elif car.lie == 'v':
-                for i in (0, car.len):
+                for i in range(0, car.len):
                     if([car.x, car.y + i] in indices):
                         [car.x, car.y + i]
                         num_blocking += 1
                         print(car.sign)
-                        continue
-                    continue
-                continue
         return num_blocking
 
     def getDirectPathIndices(self):
@@ -179,7 +147,6 @@ class Table(object):
         y = red_car.y
         path_indices = []
         path_to_goal = red_car.getStep([x, y], self.goal_state)
-        print(path_to_goal)
         if red_car.lie == 'h':
             if(path_to_goal[0] == 'f'):
                 for i in range(1, path_to_goal[1] + 1):
@@ -200,6 +167,7 @@ class Table(object):
         return True if self.getRedCar().x == self.goal_state[1] and self.getRedCar().y == self.goal_state[0] else False
 
     def updateBoard(self):
+        reset_to_0(self.board)
         for car in self.cars:
             isTruck = (car.len == 3)
             char = 't' if isTruck else 'c'
@@ -213,6 +181,8 @@ class Table(object):
                 self.board[car.y + 1][car.x] = char
                 if(isTruck):
                     self.board[car.y + 2][car.x] = char
+    def printBoard(self):
+        self.updateBoard()
         print('\n'.join([''.join(['{:1}'.format(item) for item in row])
               for row in self.board]))
 
@@ -221,6 +191,73 @@ class Table(object):
             flatBoard = [ y for x in self.board for y in x]
             stringBoard = ''.join(map(str,flatBoard))
             return hash(stringBoard)
+
+    def getNewHValue(self, car, tile1, tile2):
+        newCars = self.makeNewCars()
+        child_board = Table(newCars, self.goal_state)
+        car_to_move = child_board.getCar(car.sign)
+        move_params = car_to_move.getStep(tile1, tile2)
+        car_to_move.Move(move_params[0], move_params[1])
+        child_board.updateBoard()
+        print("during")
+        child_board.printBoard()
+        print('h(n) = ', child_board.getCarsBlocking())
+
+    def makeNewCars(self):
+        newCars = []
+        for car in self.cars:
+            newCars.append(Car(car.x, car.y, car.lie, car.len, car.sign))
+        return newCars
+
+    def findAllNewStates(self):
+        board_size = len(self.board)
+        for car in self.cars:
+            if(car.lie == 'h'):
+                print(car.sign)
+                if(car.x > 0):
+                    for i in range(1, car.x + 1):
+                        if(self.board[car.y][car.x - i] == 0):
+                            print("before")
+                            self.printBoard()
+                            self.getNewHValue(car, [car.x, car.y],[car.x - i, car.y])
+                            print("after")
+                            self.printBoard()
+                        else:
+                            break
+                if(car.x + car.len < board_size):
+                    for i in range(1, board_size - (car.x + car.len) + 1):
+                        print("i: ", i)
+                        if(self.board[car.y][car.x + car.len - 1 + i] == 0):
+                            print("before")
+                            self.printBoard()
+                            self.getNewHValue(car, [car.x, car.y],[car.x + car.len - 1 + i, car.y])
+                            print("after")
+                            self.printBoard()
+                        else:
+                            break
+            else:
+                print(car.sign)
+                if(car.y > 0):
+                    for i in range(1, car.y + 1):
+                        if(self.board[car.y - i][car.x] == 0):
+                            # print("before")
+                            # self.printBoard()
+                            self.getNewHValue(car, [car.x, car.y],[car.x, car.y - i])
+                            # print("after")
+                            # self.printBoard()
+                        else:
+                            break
+                if(car.y + car.len < board_size):
+                    for i in range(1, board_size - (car.y + car.len) + 1):
+                        print("i: ", i)
+                        if(self.board[car.y + car.len - 1 + i][car.x] == 0):
+                            # print("before")
+                            # self.printBoard()
+                            self.getNewHValue(car, [car.x, car.y],[car.x, car.y + car.len - 1 + i])
+                            # print("after")
+                            # self.printBoard()
+                        else:
+                            break
 
 main()
 
