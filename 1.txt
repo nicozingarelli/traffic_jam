@@ -1,0 +1,11 @@
+0 1 v 2 A True
+1 2 h 2 F False
+0 3 h 3 B True
+0 5 h 2 C False
+2 4 v 2 D True
+3 0 h 3 E True
+3 1 v 2 R False
+3 5 h 2 G False
+4 2 v 2 H True
+4 4 h 2 I True
+5 1 v 3 J False
