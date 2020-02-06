@@ -7,19 +7,47 @@ BOARDHEIGHT = 6 # number of rows in the board
 def main ():
     print("main")
     board = readPuzzle(sys.argv[1])
-    guy = board.getStringRep()
+    guy = board.getBoardHash()
     visited = {guy}
-    print(visited)
-    print(guy in visited)
     red_car = board.getRedCar()
     print(red_car.getStep([red_car.x, red_car.y],[3,0]))
-    # test_car = board.getCar('F')
-    # print(test_car.x)
-    # print(test_car.y)
-    # print(test_car.getStep([test_car.y, test_car.x],[4,3]))
-    # print
+    findAllNewStates(board.cars, board.board)
+    print(board.getCarsBlocking())
+
 # if RedCar.x == 4:
 	#"We're done"
+
+def findAllNewStates(cars, board):
+    board_size = len(board)
+    for car in cars:
+        if(car.lie == 'h'):
+            print(car.sign)
+            if(car.x > 0):
+                for i in range(1, car.x + 1):
+                    if(board[car.y][car.x - i] == 0):
+                        print("found new state left")
+                    else:
+                        break
+            if(car.x + car.len <= board_size):
+                for i in range(1, board_size - (car.x + car.len) + 1):
+                    if(board[car.y][car.x + car.len - 1 + i] == 0):
+                        print("found new state right")
+                    else:
+                        break
+        else:
+            print(car.sign)
+            if(car.y > 0):
+                for i in range(1, car.y + 1):
+                    if(board[car.y - i][car.x] == 0):
+                        print("found new state up")
+                    else:
+                        break
+            if(car.y + car.len <= board_size):
+                for i in range(1, board_size - (car.y + car.len) + 1):
+                    if(board[car.y + car.len - 1 + i][car.x] == 0):
+                        print("found new state down")
+                    else:
+                        break
 
 def readPuzzle(puzzle):
     cars = []
@@ -27,7 +55,7 @@ def readPuzzle(puzzle):
         for sor in puzzle:
             c = sor.split()
             cars.append(Car(int(c[0]), int(c[1]), c[2], int(c[3]), c[4]))
-    return Table(cars, (0,3))
+    return Table(cars, (3,0))
 class Car(object):
 
     def __init__(self, x, y, lie, length, sign):
@@ -61,20 +89,17 @@ class Car(object):
         # This returns the cordinates dictionry of the car weather it's h and v at all times
     def GetCoordinatesDict(self):
         return dict(map(lambda t:(t,self),self.GetCoordinates()))
-        #This decides if the tile1 is in the same direction as tile2
-        # might not need
-    # def isValidDirect(self, tile1, tile2):
-    #     fixindex = {'h':1,'v':0}
-    #     return tile1[fixindex[self.lie]] == tile2[fixindex[self.lie]]
         #This decides the direction and the number of steps between tile1 and tile2 but we just need to make sure first they're in the same direction first to use this
     def getStep(self, tile1, tile2):
         movingindex = {'h':0,'v':1}
         # map of all available coordinates
         movingcoords = map(lambda t: t[movingindex[self.lie]], self.GetCoordinates())
         # if ((tile2[movingindex[self.lie]] > tile1[movingindex[self.lie]]) and (tile2[1] == tile1[1])):
+        # if the hor/vert value of newTile > oldTile
         if tile2[movingindex[self.lie]] > tile1[movingindex[self.lie]]:
             direction = 'f'
             steps = tile2[movingindex[self.lie]] - max(movingcoords)
+        # if the hor/vert value of newTile < oldTile
         elif tile2[movingindex[self.lie]] < tile1[movingindex[self.lie]]:
             direction = 'b'
             steps = min(movingcoords) - tile2[movingindex[self.lie]]
@@ -90,7 +115,9 @@ class Table(object):
         self.cars = cars
         self.goal_state = goal_state
         self.board = [[0]*size for _ in range(size)]
-        self.cars_blocking = self.getCarsBlocking()
+        self.hash = self.getBoardHash()
+        self.updateBoard()
+        # self.cars_blocking = self.getCarsBlocking()
         #Returning the car that has a sign of R from the dictionary of cars
     def getRedCar(self):
         return dict([(c.sign,c) for c in self.cars])['R']
@@ -119,29 +146,81 @@ class Table(object):
         return reduce(lambda a, b: a and b , freecoordinates) and endpos[direction] <= self.size and endpos[direction] + 1 >= 0
 
     def getCarsBlocking(self):
-        red_car = self.getRedCar()
-        diff = red_car.x - self.goal_state[0] if (red_car.lie == 'h') else red_car.y - self.goal_state[1]
+        if self.goalTest(): return 0
+        num_blocking = 0
+        movingindex = {'h':0,'v':1}
+        indices = self.getDirectPathIndices()
+        print('indices on dir path: ',indices)
+        for car in self.cars:
+            if(car.sign == 'R'):
+                continue
+            if car.lie == 'h':
+                for i in (0, car.len):
+                    if([car.x + i, car.y] in indices):
+                        num_blocking += 1
+                        print(car.sign)
+                        continue
+                    continue
+                continue
+            elif car.lie == 'v':
+                for i in (0, car.len):
+                    if([car.x, car.y + i] in indices):
+                        [car.x, car.y + i]
+                        num_blocking += 1
+                        print(car.sign)
+                        continue
+                    continue
+                continue
+        return num_blocking
 
-    def getStringRep(self):
-        board = [[0]*self.size for _ in range(self.size)]
+    def getDirectPathIndices(self):
+        red_car = self.getRedCar()
+        x = red_car.x
+        y = red_car.y
+        path_indices = []
+        path_to_goal = red_car.getStep([x, y], self.goal_state)
+        print(path_to_goal)
+        if red_car.lie == 'h':
+            if(path_to_goal[0] == 'f'):
+                for i in range(1, path_to_goal[1] + 1):
+                    path_indices.append([x + i ,y])
+            else:
+                for i in range(1, path_to_goal[1] + 1):
+                    path_indices.append([x - i ,y])
+        else:
+            if(path_to_goal[0] == 'f'):
+                for i in range(1, path_to_goal[1] + 1):
+                    path_indices.append([x, y + i])
+            else:
+                for i in range(1, path_to_goal[1] + 1):
+                    path_indices.append([x, y - i])
+        return path_indices
+
+    def goalTest(self):
+        return True if self.getRedCar().x == self.goal_state[1] and self.getRedCar().y == self.goal_state[0] else False
+
+    def updateBoard(self):
         for car in self.cars:
             isTruck = (car.len == 3)
             char = 't' if isTruck else 'c'
             if(car.lie == 'h'):
-                board[car.y][car.x] = char.capitalize()
-                board[car.y][car.x + 1] = char
+                self.board[car.y][car.x] = char.capitalize()
+                self.board[car.y][car.x + 1] = char
                 if(isTruck):
-                    board[car.y][car.x + 2] = char
+                    self.board[car.y][car.x + 2] = char
             else:
-                board[car.y][car.x] = char.capitalize()
-                board[car.y + 1][car.x] = char
+                self.board[car.y][car.x] = char.capitalize()
+                self.board[car.y + 1][car.x] = char
                 if(isTruck):
-                    board[car.y + 2][car.x] = char
+                    self.board[car.y + 2][car.x] = char
         print('\n'.join([''.join(['{:1}'.format(item) for item in row])
-              for row in board]))
-        flatBoard = [ y for x in board for y in x]
-        stringBoard = ''.join(map(str,flatBoard))
-        return hash(stringBoard)
+              for row in self.board]))
+
+    def getBoardHash(self):
+        if self.board is not None:
+            flatBoard = [ y for x in self.board for y in x]
+            stringBoard = ''.join(map(str,flatBoard))
+            return hash(stringBoard)
 
 main()
 
