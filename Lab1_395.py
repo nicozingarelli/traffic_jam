@@ -1,17 +1,17 @@
-import  sys, random
+import  sys, random, heapq
 
 # set up the board
 BOARDWIDTH = 6  # number of columns in the board
 BOARDHEIGHT = 6 # number of rows in the board
 GOAL_STATE = (3,0)
+solution = []
+open = []
+closed = []
 
 def main ():
-    print("main")
     board = readPuzzle(sys.argv[1])
-    guy = board.getBoardHash()
-    visited = {guy}
-    red_car = board.getRedCar()
-    board.findAllNewStates()
+    frontier = board.findAllNewStates()
+    heapq.heapify(frontier)
 
 # if RedCar.x == 4:
 	#"We're done"
@@ -30,6 +30,18 @@ def reset_to_0(the_array):
             reset_to_0(e)
         else:
             the_array[i] = 0
+
+
+class State(object):
+    def __init__(self, cars, h_val):
+        self.cars = cars
+        self.h_val = h_val
+
+    def __lt__(self, other):
+        print(self.h_val < other.h_val)
+        return self.h_val < other.h_val
+    # def __cmp__(self, other):
+    #     return cmp(self.h_val, other.h_val)
 
 class Car(object):
 
@@ -200,8 +212,9 @@ class Table(object):
         car_to_move.Move(move_params[0], move_params[1])
         child_board.updateBoard()
         print("during")
-        child_board.printBoard()
-        print('h(n) = ', child_board.getCarsBlocking())
+        # child_board.printBoard()
+        return State(newCars, child_board.getCarsBlocking())
+        # print('h(n) = ', child_board.getCarsBlocking())
 
     def makeNewCars(self):
         newCars = []
@@ -210,39 +223,38 @@ class Table(object):
         return newCars
 
     def findAllNewStates(self):
+        curr_frontier = []
         board_size = len(self.board)
         for car in self.cars:
             if(car.lie == 'h'):
-                print(car.sign)
                 if(car.x > 0):
                     for i in range(1, car.x + 1):
                         if(self.board[car.y][car.x - i] == 0):
-                            print("before")
-                            self.printBoard()
-                            self.getNewHValue(car, [car.x, car.y],[car.x - i, car.y])
-                            print("after")
-                            self.printBoard()
+                            # print("before")
+                            # self.printBoard()
+                            curr_frontier.append(self.getNewHValue(car, [car.x, car.y],[car.x - i, car.y]))
+                            # print("after")
+                            # self.printBoard()
                         else:
                             break
                 if(car.x + car.len < board_size):
                     for i in range(1, board_size - (car.x + car.len) + 1):
                         print("i: ", i)
                         if(self.board[car.y][car.x + car.len - 1 + i] == 0):
-                            print("before")
-                            self.printBoard()
-                            self.getNewHValue(car, [car.x, car.y],[car.x + car.len - 1 + i, car.y])
-                            print("after")
-                            self.printBoard()
+                            # print("before")
+                            # self.printBoard()
+                            curr_frontier.append(self.getNewHValue(car, [car.x, car.y],[car.x + car.len - 1 + i, car.y]))
+                            # print("after")
+                            # self.printBoard()
                         else:
                             break
             else:
-                print(car.sign)
                 if(car.y > 0):
                     for i in range(1, car.y + 1):
                         if(self.board[car.y - i][car.x] == 0):
                             # print("before")
                             # self.printBoard()
-                            self.getNewHValue(car, [car.x, car.y],[car.x, car.y - i])
+                            curr_frontier.append(self.getNewHValue(car, [car.x, car.y],[car.x, car.y - i]))
                             # print("after")
                             # self.printBoard()
                         else:
@@ -253,12 +265,12 @@ class Table(object):
                         if(self.board[car.y + car.len - 1 + i][car.x] == 0):
                             # print("before")
                             # self.printBoard()
-                            self.getNewHValue(car, [car.x, car.y],[car.x, car.y + car.len - 1 + i])
+                            curr_frontier.append(self.getNewHValue(car, [car.x, car.y],[car.x, car.y + car.len - 1 + i]))
                             # print("after")
                             # self.printBoard()
                         else:
                             break
-
+        return curr_frontier
 main()
 
 
